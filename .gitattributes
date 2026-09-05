@@ -1,0 +1,17 @@
+# Stable text diffs across Windows and Unix checkouts.
+* text=auto
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.lua text eol=lf
+*.json text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.wav binary
+*.png binary
