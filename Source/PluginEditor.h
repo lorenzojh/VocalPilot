@@ -10,12 +10,12 @@ public:
 private:
     void timerCallback() override;
     VocalPilotProcessor& processor;
-    juce::ComboBox key, scale;
+    juce::ComboBox key, scale, transformation;
     juce::Slider strength;
     juce::ToggleButton bypass { "Bypass" };
     juce::Label keyLabel, scaleLabel, strengthLabel, diagnostics;
     using ComboAttachment = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
-    ComboAttachment keyAttachment, scaleAttachment;
+    ComboAttachment keyAttachment, scaleAttachment, transformationAttachment;
     juce::AudioProcessorValueTreeState::SliderAttachment strengthAttachment;
     juce::AudioProcessorValueTreeState::ButtonAttachment bypassAttachment;
 };

@@ -71,6 +71,10 @@ ipch/
 /test-results/
 /TestResults/
 /test-output/
+# Private/manual vocal recordings; metadata and fixture instructions remain tracked.
+/tests/audio/vocals/**/*.wav
+/tests/audio/vocals/**/*.flac
+/tests/audio/vocals/**/*.mp3
 *.log
 *.tmp
 *.temp

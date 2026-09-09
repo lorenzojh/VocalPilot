@@ -10,6 +10,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout VocalPilotProcessor::makePar
     layout.add(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "strength", 1 }, "Correction Strength",
         juce::NormalisableRange<float>(0, 100, 0.1f), 100.0f));
     layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { "bypass", 1 }, "Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID { "engine", 1 }, "Transformation Engine",
+        juce::StringArray { "Legacy reference", "Pitch synchronous", "Spectral phase locked" }, 0));
     return layout;
 }
 VocalPilotProcessor::VocalPilotProcessor()
@@ -18,9 +20,10 @@ VocalPilotProcessor::VocalPilotProcessor()
       parameters(*this, nullptr, "VocalPilotState", makeParameters()) {
     keyValue = parameters.getRawParameterValue("key"); scaleValue = parameters.getRawParameterValue("scale");
     strengthValue = parameters.getRawParameterValue("strength"); bypassValue = parameters.getRawParameterValue("bypass");
+    engineValue = parameters.getRawParameterValue("engine");
 }
 void VocalPilotProcessor::prepareToPlay(double rate, int) {
-    engine.prepare(rate); setLatencySamples(engine.latencySamples());
+    engine.prepareHQ(rate); setLatencySamples(engine.latencySamples());
     hz.store(0); midi.store(0); deviation.store(0); correction.store(0); target.store(-1);
     for (auto& meter : trackingMeters) meter.store(0, std::memory_order_relaxed);
 }
@@ -36,6 +39,7 @@ void VocalPilotProcessor::process(juce::AudioBuffer<float>& buffer, bool hostByp
     for (int ch = getTotalNumInputChannels(); ch < buffer.getNumChannels(); ++ch) buffer.clear(ch, 0, buffer.getNumSamples());
     const int count = std::min(2, std::min(buffer.getNumChannels(), getTotalNumInputChannels()));
     if (count == 0) return;
+    engine.selectTransformation(static_cast<vocalpilot::TransformationKind>(static_cast<int>(engineValue->load())));
     engine.process(buffer.getArrayOfWritePointers(), count, buffer.getNumSamples(),
         static_cast<int>(keyValue->load()), scaleValue->load() > 0.5f,
         strengthValue->load() / 100, hostBypass || bypassValue->load() > 0.5f);

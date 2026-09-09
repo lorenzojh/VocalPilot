@@ -1,0 +1,26 @@
+{
+  "legacy": {
+    "pitch_error_cents": 28.90598005306137,
+    "envelope_rmse_db": 5.194471655107236,
+    "F1_error_percent": 9.999999999999998,
+    "F2_error_percent": 10.917030567685593,
+    "F3_error_percent": 11.147540983606552,
+    "rms_modulation_db": 3.4665832973207085
+  },
+  "synchronous": {
+    "pitch_error_cents": 0.002075891855487126,
+    "envelope_rmse_db": 0.9995792732288331,
+    "F1_error_percent": 3.703703703703698,
+    "F2_error_percent": 0.917431192660545,
+    "F3_error_percent": 0.2868852459016358,
+    "rms_modulation_db": 1.2948712771533686
+  },
+  "spectral": {
+    "pitch_error_cents": 0.0020667841337594288,
+    "envelope_rmse_db": 2.635277236452717,
+    "F1_error_percent": 2.592592592592591,
+    "F2_error_percent": 1.6157205240174721,
+    "F3_error_percent": 2.8903654485049834,
+    "rms_modulation_db": 1.2870403145554112
+  }
+}

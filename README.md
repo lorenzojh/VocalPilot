@@ -1,74 +1,59 @@
-# VocalPilot — Milestone 2
+# VocalPilot � Milestone 3 research prototype
 
-A C++17 / JUCE VST3 monophonic vocal-correction prototype with confidence-aware temporal tracking and target-note hysteresis. Controls remain chromatic key, major/natural-minor scale, correction strength (0–100%), and bypass. Diagnostics expose raw/tracked pitch, note, confidence, voicing, tracker state, energy, target, requested and smoothed correction. A4 = 440 Hz; MIDI 60 = C4. The basic granular shifter is unchanged; this milestone improves its control trajectory, not commercial audio quality.
+C++17 / JUCE VST3 monophonic vocal pitch correction. Milestone 3 adds two original transformation candidates alongside the legacy shifter: pitch-synchronous waveform overlap-add and a phase-locked spectral engine with envelope restoration. M2 tracking, targeting and 25 ms correction smoothing remain unchanged.
+
+**This is an engineering bake-off, not completed sonic acceptance.** Synthetic tests and an actual VST3 host are available. Real-vocal listening and REAPER playback are still required. Legacy remains the default until that comparison is reviewed; select either new engine in the UI.
 
 ## Build
 
-Use CMake 3.22+, Git, and a supported desktop C++ compiler. On Windows install Visual Studio 2022 Build Tools with **Desktop development with C++** and a Windows SDK. JUCE 8 does **not** support MinGW. The dependency is pinned to JUCE 8.0.12, commit `29396c22c93392d6738e021b83196283d6e4d850`.
-
-From this directory in a developer terminal:
+Use CMake 3.22+, Git, Visual Studio 2022 C++ Build Tools and a Windows SDK. JUCE 8 does not support MinGW. JUCE is pinned to 8.0.12, commit `29396c22c93392d6738e021b83196283d6e4d850`. From a developer terminal:
 
 ```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DVOCALPILOT_HOST_TEST=ON
 cmake --build build --config Release --parallel 2
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-For a local JUCE checkout, append `-DJUCE_DIR=C:/path/to/JUCE` to configure. Otherwise CMake downloads the pinned revision. A supported Ninja/MSVC developer terminal can use `-G Ninja -DCMAKE_BUILD_TYPE=Release`. macOS/Linux may use their normal CMake generator and JUCE platform dependencies; they have not been validated here.
+Use `-DJUCE_DIR=C:/path/to/JUCE` for a local checkout. Otherwise CMake fetches the pinned revision. Ninja/MSVC uses `-G Ninja -DCMAKE_BUILD_TYPE=Release`. macOS/Linux builds are not validated here. Copy the whole `build/VocalPilot_artefacts/Release/VST3/VocalPilot.vst3` bundle. No system-wide installation occurs automatically. Other PCs may need the Microsoft Visual C++ 2015�2022 x64 runtime.
 
-The bundle is `build/VocalPilot_artefacts/Release/VST3/VocalPilot.vst3`. Copy the **whole bundle folder**, not just its inner binary. No plugin is automatically installed into a system directory.
+The complete validation configuration includes Python 3 and NumPy for independent spectral measurements. Set `-DPython3_EXECUTABLE=your/python` if needed; install offline test dependencies with `python -m pip install -r tools/requirements-quality.txt`. They are not shipping plugin dependencies. Without NumPy the numerical quality regression is omitted explicitly by CMake; without Python the WAV harnesses are omitted. With both and the optional host enabled there are ten CTest suites.
 
-The milestone distribution ZIP includes the Windows x64 binary in `bin/VocalPilot.vst3` and the offline analyser in `bin/vocalpilot_analyse.exe`; `bin/` is intentionally excluded from Git, so a source checkout must build them first. Other Windows PCs may need the Microsoft Visual C++ 2015–2022 x64 runtime. Add `-DVOCALPILOT_HOST_TEST=ON` at configure time to build an additional test that loads the actual VST3 binary, creates its editor and processes a tone through its host-facing interface. With Python 3 detected, CTest also validates WAV/CSV semantics and reference comparison; use `-DPython3_EXECUTABLE=your/python` if necessary. The full validated configuration has seven tests.
+Pure C++ tests can build without JUCE:
 
-DSP tests can run without JUCE:
-
-```sh
+```powershell
 cmake -S . -B build-dsp -DVOCALPILOT_DSP_ONLY=ON
 cmake --build build-dsp --config Release
 ctest --test-dir build-dsp -C Release --output-on-failure
 ```
 
-## REAPER
+## Use in REAPER
 
-1. Open Preferences → Plug-ins → VST. Add the directory containing `VocalPilot.vst3` to the scan paths and re-scan.
-2. Insert **VST3: VocalPilot (VocalPilot)** on a vocal track. Choose key and scale; start at 100% strength.
-3. Use a dry single voice. Both mono/mono and stereo/stereo buses are supported. For stereo, the **left channel** drives detection and the same shift is applied to both channels. Route a right-only vocal to the left first.
-4. Sustain a note slightly flat or sharp. The clean synthetic fixtures acquire raw pitch in about 50 ms and a target in about 60 ms. Real voices may take longer or be rejected. Check that the target and correction sign are sensible: positive cents raises pitch, negative lowers it.
-5. Compare against bypass and 0% strength. Strength scales the pitch interval; confidence also reduces correction when evidence is weak. Strength is not a wet/dry control and does not adjust the fixed 25 ms retune smoothing time. During unvoiced/uncertain frames, the trajectory releases and the shift mix returns to dry.
+Rescan the bundle, insert VocalPilot on one dry vocal, choose key/major or natural-minor scale, and compare the three engine choices. Stereo detection uses the left channel; both channels share transformation decisions. Strength scales the correction interval, not retune speed. Bypass/zero strength return aligned dry after transition. MIDI, formant controls, polyphony and graphical editing are not implemented.
 
-The plugin reports `32 + floor(0.040 * sampleRate)/2` samples of nominal latency (992 samples / 20.67 ms at 48 kHz). Bypass and 0% strength use an exact fixed-delay dry path after a short transition. Host bypass is handled too. The granular shifter has variable instantaneous delay, so host compensation is approximate while shifting. Pitch-detection acquisition time is additional control response time, not a delay added to the audio buffer. Expect this to be more suitable for prototype playback experiments than polished live monitoring.
+HQ audio delay is 4608 samples at 44.1 kHz (104.49 ms), 4800 at 48 kHz (100 ms), and 9600 at 96 kHz (100 ms), regardless of selected engine. REAPER receives that exact common delay. Legacy's moving grain positions still make its instantaneous shifted delay variable. Detection/tracker acquisition and retune response are additional control behavior, not extra host-reported audio latency. Spectral cold-start correction waits for complete window coverage. Start with playback at 48 kHz/256 samples; this is not a low-latency monitoring mode.
 
-## Scope and limitations
+Follow the [Milestone 3 own-vocal/listening procedure](docs/MILESTONE3-LISTENING.md). It covers vowels, low/high notes, sharp/flat corrections, vibrato, slides, octave changes, breath and consonants, with explicit failure diagnosis.
 
-- Approximately 65–1000 Hz detection (0.5% endpoint tolerance), fixed level/periodicity gates and analysis filtering. Breath, noise, very weak odd harmonics and rapid transitions can still cause missed or octave-wrong estimates. High confidence is periodic evidence, not proof of the correct octave or a human voice.
-- Basic time-domain shifting produces coloration, grain beating and transient smearing. No formant preservation. Stationary unity uses the dry path to avoid two-tap comb filtering.
-- Target hysteresis requires 20 cents beyond a midpoint for two frames. Large pitch jumps need persistent evidence; isolated octave errors are suppressed, while real octave changes remain possible. This is not a complete vibrato model.
-- Fixed-size analysis storage; delay buffers allocate only in preparation. Audio processing uses no locks, file I/O, strings, or GUI calls. Parameter automation is sampled per host block; diagnostics use lock-free atomics at 15 UI updates/sec.
-- No polyphony, MIDI, graphical editing, harmonies, vibrato controls or production artifact suppression.
-
-Read [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) before extending the prototype.
-
-## Offline analysis and manual acceptance
+## Offline comparisons
 
 ```powershell
-.\bin\vocalpilot_analyse.exe dry-vocal.wav analysis.csv 0 major 100
-python tools/compare_reference.py analysis.csv reference.csv
+.\build\vocalpilot_render_artefacts\Release\vocalpilot_render.exe dry-vocal.wav test-output\take-01 --key 0 --strength 100
+python tools/blind_listening.py prepare test-output/take-01 test-output/listen-01
 ```
 
-The CSV is produced by the same tracking code as the plugin, with sample-clock timestamps. See [WAV/reference workflow](docs/OFFLINE-ANALYSIS.md) and the [exact REAPER vocal test procedure](docs/REAPER-MANUAL-TEST.md). Run `tracking_tests` for accuracy/transition metrics and `tracking_benchmark` for the 15 sample-rate/block-size configurations. Synthetic validation is complete; real-human-vocal listening and REAPER track playback still require manual acceptance. No vocal dataset was downloaded.
+The renderer computes one causal M2 trajectory and reuses it for dry/legacy/synchronous/spectral aligned WAVs. It exports controls.csv for sample-exact replay and rejects existing destination folders. A separate fixed-F0 or explicit-trajectory mode isolates transformation quality. See the [workflow](docs/MILESTONE3-LISTENING.md) before using oracle controls on real recordings.
 
-## Source repository
+The original `vocalpilot_analyse` WAV-to-CSV utility remains available; see [M2 analysis documentation](docs/OFFLINE-ANALYSIS.md). Private vocal fixtures are ignored under `tests/audio/vocals/`; its README and metadata template explain permissions. No human corpus is included.
 
-- `Source/`: JUCE processor/editor and independent DSP headers.
-- `tests/`: regression, tracking metrics, CPU/allocation checks, WAV/CSV validation and optional VST3 binary-host tests.
-- `tools/`: offline WAV analyser and independent reference-trajectory scoring.
-- `examples/`: REAPER smoke script and small, intentional reference audio files.
-- `docs/`: architecture, milestone reports, numerical evidence, manual acceptance, UI screenshots and JUCE license notice. Logs use `<BUILD_DIR>` in place of machine-specific paths. Milestone 1 evidence remains archived separately.
-- `CMakeLists.txt`: reproducible build configuration with a pinned JUCE revision.
-- `.gitignore` / `.gitattributes`: generated-file exclusions and consistent text/binary handling.
+## Structure and evidence
 
-Build outputs, IDE caches, user presets and local environment files stay out of Git. Shareable configuration such as `CMakePresets.json` remains eligible for tracking. Keep prebuilt plugin distributions in release assets rather than source history.
+- `Source/dsp/`: M2 tracking/control and legacy shifter.
+- `Source/dsp/transformation/`: common control contract, delay history, FFT, two new engines and the comparison bank.
+- `Source/Plugin*`: JUCE host integration, five saved parameters and diagnostic UI.
+- `tools/`: aligned renderer, blind ratings, independent NumPy quality/event measurements and original CSV analyser.
+- `tests/`: historical regressions, transformation invariants, allocation/CPU probes, WAV harnesses and binary VST3 hosting.
+- `docs/`: [architecture](docs/MILESTONE3-ARCHITECTURE.md), [measured results and limitations](docs/MILESTONE3-VALIDATION.md), historical M1/M2 evidence and manual procedures.
 
-## Dependencies
+Run `transformation_benchmark` for all three rates and five block sizes. Run `python tools/transformation_quality.py path/to/vocalpilot_render.exe test-output/quality` for the full 372-fixture vowel sweep, and `python tools/transformation_events.py path/to/vocalpilot_render.exe test-output/events` for dynamic/transient/Nyquist probes. The numerical tests measure synthetic behavior; they do not produce listening scores or validate commercial quality.
 
-JUCE retains its own licensing terms; see the [pinned JUCE repository](https://github.com/juce-framework/JUCE/tree/29396c22c93392d6738e021b83196283d6e4d850) and its LICENSE.md. Build integration follows the [JUCE CMake API](https://github.com/juce-framework/JUCE/blob/29396c22c93392d6738e021b83196283d6e4d850/docs/CMake%20API.md). The project source does not vendor JUCE or a compiler.
+Build outputs, `bin/`, local audio, IDE caches and private configuration remain ignored. Pinned JUCE licensing remains applicable; see [JUCE notice](docs/JUCE-LICENSE.md). No external pitch library has been added as a shipping dependency.
