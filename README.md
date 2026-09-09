@@ -1,6 +1,6 @@
-# VocalPilot — Milestone 1
+# VocalPilot — Milestone 2
 
-A small C++17 / JUCE VST3 monophonic vocal-correction prototype. Controls: chromatic key, major/natural-minor scale, correction strength (0–100%), and bypass. The editor shows frequency, fractional MIDI note, nearest chromatic note name, cents deviation, target note, and smoothed correction in cents. A4 = 440 Hz; MIDI 60 = C4.
+A C++17 / JUCE VST3 monophonic vocal-correction prototype with confidence-aware temporal tracking and target-note hysteresis. Controls remain chromatic key, major/natural-minor scale, correction strength (0–100%), and bypass. Diagnostics expose raw/tracked pitch, note, confidence, voicing, tracker state, energy, target, requested and smoothed correction. A4 = 440 Hz; MIDI 60 = C4. The basic granular shifter is unchanged; this milestone improves its control trajectory, not commercial audio quality.
 
 ## Build
 
@@ -18,7 +18,7 @@ For a local JUCE checkout, append `-DJUCE_DIR=C:/path/to/JUCE` to configure. Oth
 
 The bundle is `build/VocalPilot_artefacts/Release/VST3/VocalPilot.vst3`. Copy the **whole bundle folder**, not just its inner binary. No plugin is automatically installed into a system directory.
 
-The milestone distribution ZIP includes the Windows x64 binary in `bin/VocalPilot.vst3`; `bin/` is intentionally excluded from Git, so a source checkout must build it first. Other Windows PCs may need the Microsoft Visual C++ 2015–2022 x64 runtime. Add `-DVOCALPILOT_HOST_TEST=ON` at configure time to build an additional test that loads the actual VST3 binary, creates its editor and processes a tone through its host-facing interface.
+The milestone distribution ZIP includes the Windows x64 binary in `bin/VocalPilot.vst3` and the offline analyser in `bin/vocalpilot_analyse.exe`; `bin/` is intentionally excluded from Git, so a source checkout must build them first. Other Windows PCs may need the Microsoft Visual C++ 2015–2022 x64 runtime. Add `-DVOCALPILOT_HOST_TEST=ON` at configure time to build an additional test that loads the actual VST3 binary, creates its editor and processes a tone through its host-facing interface. With Python 3 detected, CTest also validates WAV/CSV semantics and reference comparison; use `-DPython3_EXECUTABLE=your/python` if necessary. The full validated configuration has seven tests.
 
 DSP tests can run without JUCE:
 
@@ -33,27 +33,37 @@ ctest --test-dir build-dsp -C Release --output-on-failure
 1. Open Preferences → Plug-ins → VST. Add the directory containing `VocalPilot.vst3` to the scan paths and re-scan.
 2. Insert **VST3: VocalPilot (VocalPilot)** on a vocal track. Choose key and scale; start at 100% strength.
 3. Use a dry single voice. Both mono/mono and stereo/stereo buses are supported. For stereo, the **left channel** drives detection and the same shift is applied to both channels. Route a right-only vocal to the left first.
-4. Sustain a note slightly flat or sharp. The detector needs about 85–95 ms to acquire a stable pitch at common sample rates. Check that the target and correction sign are sensible: positive cents raises pitch, negative lowers it.
-5. Compare against bypass and 0% strength. Strength scales the pitch interval; it is not a wet/dry control and does not adjust the fixed 25 ms retune smoothing time.
+4. Sustain a note slightly flat or sharp. The clean synthetic fixtures acquire raw pitch in about 50 ms and a target in about 60 ms. Real voices may take longer or be rejected. Check that the target and correction sign are sensible: positive cents raises pitch, negative lowers it.
+5. Compare against bypass and 0% strength. Strength scales the pitch interval; confidence also reduces correction when evidence is weak. Strength is not a wet/dry control and does not adjust the fixed 25 ms retune smoothing time. During unvoiced/uncertain frames, the trajectory releases and the shift mix returns to dry.
 
 The plugin reports `32 + floor(0.040 * sampleRate)/2` samples of nominal latency (992 samples / 20.67 ms at 48 kHz). Bypass and 0% strength use an exact fixed-delay dry path after a short transition. Host bypass is handled too. The granular shifter has variable instantaneous delay, so host compensation is approximate while shifting. Pitch-detection acquisition time is additional control response time, not a delay added to the audio buffer. Expect this to be more suitable for prototype playback experiments than polished live monitoring.
 
 ## Scope and limitations
 
-- Approximately 65–1000 Hz detection, fixed voicing threshold and energy gate; breath, noise, weak fundamentals and fast transitions can cause missed or octave-wrong estimates.
+- Approximately 65–1000 Hz detection (0.5% endpoint tolerance), fixed level/periodicity gates and analysis filtering. Breath, noise, very weak odd harmonics and rapid transitions can still cause missed or octave-wrong estimates. High confidence is periodic evidence, not proof of the correct octave or a human voice.
 - Basic time-domain shifting produces coloration, grain beating and transient smearing. No formant preservation. Stationary unity uses the dry path to avoid two-tap comb filtering.
-- No target hysteresis: singing exactly between valid notes may switch targets. Exact distance ties choose the lower note.
+- Target hysteresis requires 20 cents beyond a midpoint for two frames. Large pitch jumps need persistent evidence; isolated octave errors are suppressed, while real octave changes remain possible. This is not a complete vibrato model.
 - Fixed-size analysis storage; delay buffers allocate only in preparation. Audio processing uses no locks, file I/O, strings, or GUI calls. Parameter automation is sampled per host block; diagnostics use lock-free atomics at 15 UI updates/sec.
 - No polyphony, MIDI, graphical editing, harmonies, vibrato controls or production artifact suppression.
 
 Read [architecture](docs/ARCHITECTURE.md) and [validation](docs/VALIDATION.md) before extending the prototype.
 
+## Offline analysis and manual acceptance
+
+```powershell
+.\bin\vocalpilot_analyse.exe dry-vocal.wav analysis.csv 0 major 100
+python tools/compare_reference.py analysis.csv reference.csv
+```
+
+The CSV is produced by the same tracking code as the plugin, with sample-clock timestamps. See [WAV/reference workflow](docs/OFFLINE-ANALYSIS.md) and the [exact REAPER vocal test procedure](docs/REAPER-MANUAL-TEST.md). Run `tracking_tests` for accuracy/transition metrics and `tracking_benchmark` for the 15 sample-rate/block-size configurations. Synthetic validation is complete; real-human-vocal listening and REAPER track playback still require manual acceptance. No vocal dataset was downloaded.
+
 ## Source repository
 
 - `Source/`: JUCE processor/editor and independent DSP headers.
-- `tests/`: DSP, processor/state/editor, and optional VST3 binary-host tests.
+- `tests/`: regression, tracking metrics, CPU/allocation checks, WAV/CSV validation and optional VST3 binary-host tests.
+- `tools/`: offline WAV analyser and independent reference-trajectory scoring.
 - `examples/`: REAPER smoke script and small, intentional reference audio files.
-- `docs/`: architecture, validation evidence, UI screenshot and JUCE license notice. The historical test report uses `<BUILD_DIR>` in place of machine-specific paths.
+- `docs/`: architecture, milestone reports, numerical evidence, manual acceptance, UI screenshots and JUCE license notice. Logs use `<BUILD_DIR>` in place of machine-specific paths. Milestone 1 evidence remains archived separately.
 - `CMakeLists.txt`: reproducible build configuration with a pinned JUCE revision.
 - `.gitignore` / `.gitattributes`: generated-file exclusions and consistent text/binary handling.
 

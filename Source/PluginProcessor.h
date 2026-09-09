@@ -36,5 +36,7 @@ private:
     std::atomic<float>* bypassValue = nullptr;
     static_assert(std::atomic<float>::is_always_lock_free, "DSP meters require lock-free floats");
     std::atomic<float> hz { 0 }, midi { 0 }, deviation { 0 }, correction { 0 }, target { -1 };
+    // Independent diagnostic fields; the UI may see adjacent blocks, never torn scalars.
+    std::array<std::atomic<float>,11> trackingMeters {};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VocalPilotProcessor)
 };
