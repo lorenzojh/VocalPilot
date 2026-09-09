@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
         auto layout = processor.getBusesLayout(); layout.inputBuses.set(0, channels); layout.outputBuses.set(0, channels);
         require(processor.setBusesLayout(layout), "mono/stereo layout failed");
         processor.prepareToPlay(48000, 256);
-        require(processor.getLatencySamples() == 992, "latency");
+        require(processor.getLatencySamples() == 4800, "HQ bank fixed 100 ms latency");
         juce::AudioBuffer<float> buffer(channels.size(), 256); juce::MidiBuffer midi;
         double maximumMs = 0, totalMs = 0;
         for (int block = 0; block < 200; ++block) {
@@ -40,9 +40,10 @@ int main(int argc, char** argv) {
     processor.parameters.getParameter("scale")->setValueNotifyingHost(1);
     processor.parameters.getParameter("strength")->setValueNotifyingHost(0.37f);
     processor.parameters.getParameter("bypass")->setValueNotifyingHost(1);
+    processor.parameters.getParameter("engine")->setValueNotifyingHost(1);
     juce::MemoryBlock state; processor.getStateInformation(state);
     VocalPilotProcessor restored; restored.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
-    for (const auto* id : { "key", "scale", "strength", "bypass" })
+    for (const auto* id : { "key", "scale", "strength", "bypass", "engine" })
         require(std::abs(processor.parameters.getRawParameterValue(id)->load() - restored.parameters.getRawParameterValue(id)->load()) < 0.001, "state roundtrip");
     std::unique_ptr<juce::AudioProcessorEditor> editor(restored.createEditor());
     require(editor && editor->getWidth() == 500, "editor creation");

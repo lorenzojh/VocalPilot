@@ -8,9 +8,12 @@ juce::String noteName(int midi) {
 }
 VocalPilotEditor::VocalPilotEditor(VocalPilotProcessor& p) : AudioProcessorEditor(p), processor(p),
     keyAttachment(p.parameters, "key", key), scaleAttachment(p.parameters, "scale", scale),
+    transformationAttachment(p.parameters, "engine", transformation),
     strengthAttachment(p.parameters, "strength", strength), bypassAttachment(p.parameters, "bypass", bypass) {
     key.addItemList({ "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 1);
     scale.addItemList({ "Major", "Minor" }, 1);
+    transformation.addItemList({ "Legacy reference", "Pitch synchronous", "Spectral phase locked" }, 1);
+    transformation.setSelectedItemIndex(static_cast<int>(p.parameters.getRawParameterValue("engine")->load()), juce::dontSendNotification);
     key.setSelectedItemIndex(static_cast<int>(p.parameters.getRawParameterValue("key")->load()), juce::dontSendNotification);
     scale.setSelectedItemIndex(static_cast<int>(p.parameters.getRawParameterValue("scale")->load()), juce::dontSendNotification);
     strength.setSliderStyle(juce::Slider::LinearHorizontal);
@@ -18,23 +21,24 @@ VocalPilotEditor::VocalPilotEditor(VocalPilotProcessor& p) : AudioProcessorEdito
     strength.setTextValueSuffix(" %");
     keyLabel.setText("Key", juce::dontSendNotification); scaleLabel.setText("Scale", juce::dontSendNotification);
     strengthLabel.setText("Correction strength", juce::dontSendNotification);
-    juce::Component* components[] { &key, &scale, &strength, &bypass, &keyLabel, &scaleLabel, &strengthLabel, &diagnostics };
+    juce::Component* components[] { &key, &scale, &transformation, &strength, &bypass, &keyLabel, &scaleLabel, &strengthLabel, &diagnostics };
     for (auto* component : components) addAndMakeVisible(component);
     diagnostics.setJustificationType(juce::Justification::topLeft);
-    setSize(500, 410); startTimerHz(15); timerCallback();
+    setSize(500, 450); startTimerHz(15); timerCallback();
 }
 void VocalPilotEditor::paint(juce::Graphics& g) {
     g.fillAll(juce::Colour(0xff182129));
     g.setColour(juce::Colours::white); g.setFont(24.0f); g.drawText("VocalPilot", 20, 12, 300, 36, juce::Justification::left);
     g.setFont(13.0f); g.setColour(juce::Colour(0xffa8b5c0));
-    g.drawText("Milestone 2  |  Vocal tracking diagnostics", 20, 48, 460, 24, juce::Justification::left);
-    g.drawText("Minor = natural minor. Stereo detection uses left input.", 20, 376, 470, 22, juce::Justification::left);
+    g.drawText("Milestone 3  |  Transformation research", 20, 48, 460, 24, juce::Justification::left);
+    g.drawText("HQ delay compensation. Experimental engines; compare by ear.", 20, 416, 470, 22, juce::Justification::left);
 }
 void VocalPilotEditor::resized() {
     keyLabel.setBounds(20, 80, 55, 28); key.setBounds(75, 80, 110, 28);
     scaleLabel.setBounds(205, 80, 55, 28); scale.setBounds(260, 80, 120, 28); bypass.setBounds(390, 80, 95, 28);
     strengthLabel.setBounds(20, 122, 150, 28); strength.setBounds(170, 122, 310, 28);
-    diagnostics.setBounds(20, 166, 460, 200);
+    transformation.setBounds(20, 160, 460, 28);
+    diagnostics.setBounds(20, 206, 460, 200);
 }
 void VocalPilotEditor::timerCallback() {
     const auto info = processor.readDiagnostics();

@@ -50,6 +50,16 @@ int main() {
             watching=false;
         }
     }
+    for(double rate : {44100.,48000.,96000.}) {
+        engine.prepareHQ(rate);
+        for(int block=0;block<1000;++block) {
+            for(int i=0;i<512;++i) left[i]=right[i]=static_cast<float>(.2*std::sin(2*3.141592653589793*220*(block*512+i)/rate));
+            watching=true;
+            engine.selectTransformation(static_cast<vocalpilot::TransformationKind>((block/70)%3));
+            engine.process(channels,2,1+block%512,block%12,block%2!=0,.8f,block%10==0);
+            watching=false;
+        }
+    }
     std::cout<<"Core DSP operator new/new[] calls during processing: "<<allocations<<'\n';
     return allocations==0?0:1;
 }

@@ -1,0 +1,6 @@
+Baseline before DSP changes: commit 3b29384 (Milestone 2), clean working tree.
+Created branch milestone-3-hq-resynthesis.
+Windows x64 MSVC 19.44, CMake 3.31.8, JUCE 8.0.12, Release.
+Existing CTest suites: dsp_tests, tracking_tests, realtime_safety_tests, processor_tests, wav_analysis, wav_analysis_validation, vst3_smoke.
+7/7 passed, 0 failures, 1.93 seconds.
+Original tracking and PitchShifter headers retained unchanged.

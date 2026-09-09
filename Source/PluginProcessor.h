@@ -15,7 +15,7 @@ public:
     const juce::String getName() const override { return "VocalPilot"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.05; }
+    double getTailLengthSeconds() const override { return 0.15; }
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram(int) override {}
@@ -34,6 +34,7 @@ private:
     std::atomic<float>* scaleValue = nullptr;
     std::atomic<float>* strengthValue = nullptr;
     std::atomic<float>* bypassValue = nullptr;
+    std::atomic<float>* engineValue = nullptr;
     static_assert(std::atomic<float>::is_always_lock_free, "DSP meters require lock-free floats");
     std::atomic<float> hz { 0 }, midi { 0 }, deviation { 0 }, correction { 0 }, target { -1 };
     // Independent diagnostic fields; the UI may see adjacent blocks, never torn scalars.

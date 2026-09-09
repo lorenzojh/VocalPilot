@@ -26,6 +26,14 @@ int main(int argc, char** argv) {
         if (!writer) return 1;
         stream.release();
     }
+    juce::AudioProcessorParameter* engineParameter=nullptr;
+    for(auto* parameter:plugin->getParameters()) if(parameter->getName(64)=="Transformation Engine") engineParameter=parameter;
+    if(!engineParameter || plugin->getLatencySamples()!=4800) return 1;
+    bool passed=true;
+    for(int engine=0;engine<3;++engine) {
+    plugin->releaseResources();
+    engineParameter->setValueNotifyingHost(engine/2.0f);
+    plugin->prepareToPlay(48000,256);
     vocalpilot::PitchDetector detector; detector.prepare(48000);
     for (int block=0;block<600;++block) {
         for (int i=0;i<256;++i) for (int ch=0;ch<2;++ch)
@@ -33,12 +41,16 @@ int main(int argc, char** argv) {
         plugin->processBlock(buffer,midi);
         if (writer && !writer->writeFromAudioSampleBuffer(buffer,0,buffer.getNumSamples())) return 1;
         for (int i=0;i<256;++i) {
-            if (!std::isfinite(buffer.getSample(0,i)) || std::abs(buffer.getSample(0,i))>0.3) return 1;
+            if (!std::isfinite(buffer.getSample(0,i)) || std::abs(buffer.getSample(0,i))>0.3) {
+                std::cerr<<"Engine "<<engine<<" unexpected sample "<<buffer.getSample(0,i)<<" at "<<block*256+i<<'\n'; return 1;
+            }
             detector.push(buffer.getSample(0,i));
         }
     }
     const auto hz = detector.get().hz;
-    std::cout << "VST3 output for 432 Hz: " << hz << " Hz\n";
+    std::cout << "VST3 engine " << engine << " output for 432 Hz: " << hz << " Hz\n";
+    passed=passed && hz>0 && std::abs(1200*std::log2(hz/440))<20;
+    }
     editor.reset(); plugin->releaseResources();
-    return hz > 0 && std::abs(1200*std::log2(hz/440))<20 ? 0 : 1;
+    return passed ? 0 : 1;
 }

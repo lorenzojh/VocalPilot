@@ -1,0 +1,26 @@
+Internal ctest changing into directory: <BUILD_DIR>
+Test project <BUILD_DIR>
+      Start  1: dsp_tests
+ 1/10 Test  #1: dsp_tests ...........................   Passed    0.32 sec
+      Start  2: tracking_tests
+ 2/10 Test  #2: tracking_tests ......................   Passed    0.89 sec
+      Start  3: realtime_safety_tests
+ 3/10 Test  #3: realtime_safety_tests ...............   Passed    1.35 sec
+      Start  4: transformation_tests
+ 4/10 Test  #4: transformation_tests ................   Passed    1.92 sec
+      Start  5: processor_tests
+ 5/10 Test  #5: processor_tests .....................   Passed    0.16 sec
+      Start  6: wav_analysis
+ 6/10 Test  #6: wav_analysis ........................   Passed    0.03 sec
+      Start  7: transformation_quality_regression
+ 7/10 Test  #7: transformation_quality_regression ...   Passed    4.44 sec
+      Start  8: render_validation
+ 8/10 Test  #8: render_validation ...................   Passed    1.35 sec
+      Start  9: wav_analysis_validation
+ 9/10 Test  #9: wav_analysis_validation .............   Passed    0.30 sec
+      Start 10: vst3_smoke
+10/10 Test #10: vst3_smoke ..........................   Passed    1.06 sec
+
+100% tests passed, 0 tests failed out of 10
+
+Total Test time (real) =  11.83 sec

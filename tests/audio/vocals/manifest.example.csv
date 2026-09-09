@@ -1,0 +1,2 @@
+fixture_id,relative_file,category,permission_basis,redistribution_allowed,sample_rate,channel,f0_range_hz,processing,annotation_method
+example_only,male_mid/example.wav,male_mid,replace_with_recorded_owner_consent,no,48000,left,replace,none,unannotated
