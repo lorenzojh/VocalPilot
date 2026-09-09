@@ -78,6 +78,8 @@ ipch/
 *.gcno
 *.profraw
 *.profdata
+__pycache__/
+*.py[cod]
 *.rpp-bak
 *.reapeaks
 

@@ -25,6 +25,11 @@ int main(int argc, char** argv) {
         }
         require(std::abs(processor.readDiagnostics().hz - 432) < 2, "processor pitch meter");
         require(processor.readDiagnostics().target == 69, "processor target");
+        const auto diagnostics=processor.readDiagnostics();
+        require(diagnostics.voiced && diagnostics.valid && diagnostics.trackedValid, "tracking flags exposed");
+        require(diagnostics.confidence>0.95f && diagnostics.reliability>0.95f, "confidence meters exposed");
+        require(std::abs(diagnostics.trackedHz-432)<2 && diagnostics.state==vocalpilot::TrackingState::tracking, "tracked pitch exposed");
+        require(diagnostics.requested>25 && diagnostics.requested<35, "requested correction exposed");
         std::cout << channels.size() << " channels, 256 samples at 48k: mean " << totalMs / 200
                   << " ms, max " << maximumMs << " ms (5.333 ms deadline)\n";
         processor.processBlockBypassed(buffer, midi);

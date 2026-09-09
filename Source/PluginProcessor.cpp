@@ -22,6 +22,7 @@ VocalPilotProcessor::VocalPilotProcessor()
 void VocalPilotProcessor::prepareToPlay(double rate, int) {
     engine.prepare(rate); setLatencySamples(engine.latencySamples());
     hz.store(0); midi.store(0); deviation.store(0); correction.store(0); target.store(-1);
+    for (auto& meter : trackingMeters) meter.store(0, std::memory_order_relaxed);
 }
 bool VocalPilotProcessor::isBusesLayoutSupported(const BusesLayout& layout) const {
     const auto out = layout.getMainOutputChannelSet();
@@ -42,11 +43,22 @@ void VocalPilotProcessor::process(juce::AudioBuffer<float>& buffer, bool hostByp
     hz.store(info.hz, std::memory_order_relaxed); midi.store(info.midi, std::memory_order_relaxed);
     deviation.store(info.deviation, std::memory_order_relaxed); correction.store(info.correction, std::memory_order_relaxed);
     target.store(static_cast<float>(info.target), std::memory_order_relaxed);
+    const float values[] { info.inputRms, info.confidence, info.trackedHz, info.trackedMidi,
+        info.requested, info.wet, info.reliability, info.voiced ? 1.0f : 0.0f,
+        info.valid ? 1.0f : 0.0f, info.trackedValid ? 1.0f : 0.0f, static_cast<float>(info.state) };
+    for (size_t i=0; i<trackingMeters.size(); ++i) trackingMeters[i].store(values[i], std::memory_order_relaxed);
 }
 vocalpilot::Diagnostics VocalPilotProcessor::readDiagnostics() const noexcept {
-    return { hz.load(std::memory_order_relaxed), midi.load(std::memory_order_relaxed),
+    vocalpilot::Diagnostics result { hz.load(std::memory_order_relaxed), midi.load(std::memory_order_relaxed),
         deviation.load(std::memory_order_relaxed), correction.load(std::memory_order_relaxed),
         static_cast<int>(target.load(std::memory_order_relaxed)) };
+    float values[11];
+    for (size_t i=0; i<trackingMeters.size(); ++i) values[i]=trackingMeters[i].load(std::memory_order_relaxed);
+    result.inputRms=values[0]; result.confidence=values[1]; result.trackedHz=values[2]; result.trackedMidi=values[3];
+    result.requested=values[4]; result.wet=values[5]; result.reliability=values[6];
+    result.voiced=values[7]>0.5f; result.valid=values[8]>0.5f; result.trackedValid=values[9]>0.5f;
+    result.state=static_cast<vocalpilot::TrackingState>(static_cast<int>(values[10]));
+    return result;
 }
 juce::AudioProcessorParameter* VocalPilotProcessor::getBypassParameter() const { return parameters.getParameter("bypass"); }
 void VocalPilotProcessor::getStateInformation(juce::MemoryBlock& data) {
