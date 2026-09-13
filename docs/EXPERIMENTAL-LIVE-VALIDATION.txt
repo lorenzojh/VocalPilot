@@ -1,0 +1,44 @@
+Live 140 Hz 25 cents: error 0.0371909 cents; marker 513..544 samples
+Live 140 Hz 100 cents: error 0.0948763 cents; marker 502..769 samples
+Live 140 Hz -100 cents: error 0.0846449 cents; marker 668..791 samples
+Live 140 Hz 200 cents: error 0.0981373 cents; marker 510..817 samples
+Live 140 Hz -200 cents: error 0.0743656 cents; marker 485..738 samples
+Live 180 Hz 25 cents: error 0.152929 cents; marker 711..743 samples
+Live 180 Hz 100 cents: error 0.29846 cents; marker 494..687 samples
+Live 180 Hz -100 cents: error 0.0848226 cents; marker 549..677 samples
+Live 220 Hz 25 cents: error 0.219003 cents; marker 622..654 samples
+Live 220 Hz 100 cents: error 0.106857 cents; marker 526..672 samples
+Live 220 Hz -100 cents: error 0.176651 cents; marker 487..605 samples
+Live 350 Hz 25 cents: error 0.568046 cents; marker 489..611 samples
+Live 350 Hz 100 cents: error 0.653524 cents; marker 482..612 samples
+Live 350 Hz -100 cents: error 0.60047 cents; marker 513..602 samples
+Live 500 Hz 25 cents: error 0.598165 cents; marker 417..531 samples
+Live 500 Hz 100 cents: error 0.619114 cents; marker 419..565 samples
+Live 500 Hz -100 cents: error 0.873014 cents; marker 471..586 samples
+Live 500 Hz 200 cents: error 1.51719 cents; marker 404..552 samples
+Live 500 Hz -200 cents: error 0.84088 cents; marker 409..524 samples
+M2 + Live output 440.285 Hz; mean stereo 128-block CPU 0.0255572 ms
+M2 range edge 140 tracked 140.006 output 146.841 target 146.832
+M2 range edge 500 tracked 500.427 output 494.258 target 493.883
+Live smoke passed
+
+Internal ctest changing into directory: C:/Users/Lorenzo/Documents/Codex/VocalPilot/build
+Test project C:/Users/Lorenzo/Documents/Codex/VocalPilot/build
+    Start  1: dsp_tests
+1/7 Test  #1: dsp_tests ........................   Passed    0.33 sec
+    Start  2: tracking_tests
+2/7 Test  #2: tracking_tests ...................   Passed    0.92 sec
+    Start  3: realtime_safety_tests
+3/7 Test  #3: realtime_safety_tests ............   Passed    1.38 sec
+    Start  4: transformation_tests
+4/7 Test  #4: transformation_tests .............   Passed    1.95 sec
+    Start  5: processor_tests
+5/7 Test  #5: processor_tests ..................   Passed    0.22 sec
+    Start  6: live_smoke
+6/7 Test  #6: live_smoke .......................   Passed    0.54 sec
+    Start 11: vst3_smoke
+7/7 Test #11: vst3_smoke .......................   Passed    3.15 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =   8.54 sec

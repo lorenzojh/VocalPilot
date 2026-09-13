@@ -12,6 +12,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout VocalPilotProcessor::makePar
     layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID { "bypass", 1 }, "Bypass", false));
     layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID { "engine", 1 }, "Transformation Engine",
         juce::StringArray { "Legacy reference", "Pitch synchronous", "Spectral phase locked" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID { "mode", 1 }, "Processing Mode",
+        juce::StringArray { "HQ", "LIVE (experimental)" }, 0,
+        juce::AudioParameterChoiceAttributes().withAutomatable(false)));
     return layout;
 }
 VocalPilotProcessor::VocalPilotProcessor()
@@ -21,9 +24,26 @@ VocalPilotProcessor::VocalPilotProcessor()
     keyValue = parameters.getRawParameterValue("key"); scaleValue = parameters.getRawParameterValue("scale");
     strengthValue = parameters.getRawParameterValue("strength"); bypassValue = parameters.getRawParameterValue("bypass");
     engineValue = parameters.getRawParameterValue("engine");
+    modeValue = parameters.getRawParameterValue("mode");
+    parameters.addParameterListener("mode",this);
+}
+VocalPilotProcessor::~VocalPilotProcessor() { parameters.removeParameterListener("mode",this); cancelPendingUpdate(); }
+void VocalPilotProcessor::prepareSelectedMode(double rate) {
+    const bool live=modeValue->load()>.5f;
+    if(live) engine.prepareLive(rate); else engine.prepareHQ(rate);
+    activeMode.store(live?1:0); setLatencySamples(engine.latencySamples());
+}
+void VocalPilotProcessor::handleAsyncUpdate() {
+    // Mode changes allocate/reset on the message thread, never inside processBlock.
+    // Suspend briefly; the callback lock also serializes hosts which call us directly.
+    suspendProcessing(true);
+    { const juce::ScopedLock lock(getCallbackLock());
+      if(preparedRate>0 && activeMode.load()!=(modeValue->load()>.5f?1:0)) prepareSelectedMode(preparedRate); }
+    suspendProcessing(false);
 }
 void VocalPilotProcessor::prepareToPlay(double rate, int) {
-    engine.prepareHQ(rate); setLatencySamples(engine.latencySamples());
+    const juce::ScopedLock lock(getCallbackLock());
+    preparedRate=rate; prepareSelectedMode(rate);
     hz.store(0); midi.store(0); deviation.store(0); correction.store(0); target.store(-1);
     for (auto& meter : trackingMeters) meter.store(0, std::memory_order_relaxed);
 }
@@ -35,6 +55,7 @@ bool VocalPilotProcessor::isBusesLayoutSupported(const BusesLayout& layout) cons
 void VocalPilotProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process(buffer, false); }
 void VocalPilotProcessor::processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) { process(buffer, true); }
 void VocalPilotProcessor::process(juce::AudioBuffer<float>& buffer, bool hostBypass) {
+    const juce::ScopedLock lock(getCallbackLock());
     juce::ScopedNoDenormals noDenormals;
     for (int ch = getTotalNumInputChannels(); ch < buffer.getNumChannels(); ++ch) buffer.clear(ch, 0, buffer.getNumSamples());
     const int count = std::min(2, std::min(buffer.getNumChannels(), getTotalNumInputChannels()));
@@ -70,7 +91,14 @@ void VocalPilotProcessor::getStateInformation(juce::MemoryBlock& data) {
 }
 void VocalPilotProcessor::setStateInformation(const void* data, int size) {
     if (auto xml = getXmlFromBinary(data, size))
-        if (xml->hasTagName(parameters.state.getType())) parameters.replaceState(juce::ValueTree::fromXml(*xml));
+        if (xml->hasTagName(parameters.state.getType())) {
+            auto state=juce::ValueTree::fromXml(*xml);
+            // Old M1-M3 sessions have no mode parameter and must continue in HQ.
+            bool found=false;
+            for(const auto& child:state) if(child.getProperty("id").toString()=="mode") found=true;
+            if(!found) { juce::ValueTree mode("PARAM"); mode.setProperty("id","mode",nullptr); mode.setProperty("value",0,nullptr); state.appendChild(mode,nullptr); }
+            parameters.replaceState(state);
+        }
 }
 juce::AudioProcessorEditor* VocalPilotProcessor::createEditor() { return new VocalPilotEditor(*this); }
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new VocalPilotProcessor(); }

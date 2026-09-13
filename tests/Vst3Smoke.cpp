@@ -27,20 +27,28 @@ int main(int argc, char** argv) {
         stream.release();
     }
     juce::AudioProcessorParameter* engineParameter=nullptr;
-    for(auto* parameter:plugin->getParameters()) if(parameter->getName(64)=="Transformation Engine") engineParameter=parameter;
-    if(!engineParameter || plugin->getLatencySamples()!=4800) return 1;
+    juce::AudioProcessorParameter* modeParameter=nullptr;
+    for(auto* parameter:plugin->getParameters()) {
+        if(parameter->getName(64)=="Transformation Engine") engineParameter=parameter;
+        if(parameter->getName(64)=="Processing Mode") modeParameter=parameter;
+    }
+    if(!engineParameter || !modeParameter || plugin->getLatencySamples()!=4800) return 1;
     bool passed=true;
-    for(int engine=0;engine<3;++engine) {
+    for(int engine=0;engine<4;++engine) {
     plugin->releaseResources();
-    engineParameter->setValueNotifyingHost(engine/2.0f);
-    plugin->prepareToPlay(48000,256);
+    modeParameter->setValueNotifyingHost(engine==3?1.f:0.f);
+    if(engine<3) engineParameter->setValueNotifyingHost(engine/2.0f);
+    const int blockSize=engine==3?128:256;
+    buffer.setSize(2,blockSize);
+    plugin->prepareToPlay(48000,blockSize);
+    if(plugin->getLatencySamples()!=(engine==3?864:4800)) return 1;
     vocalpilot::PitchDetector detector; detector.prepare(48000);
     for (int block=0;block<600;++block) {
-        for (int i=0;i<256;++i) for (int ch=0;ch<2;++ch)
-            buffer.setSample(ch,i,0.2f*std::sin(2*juce::MathConstants<double>::pi*432*(block*256+i)/48000));
+        for (int i=0;i<blockSize;++i) for (int ch=0;ch<2;++ch)
+            buffer.setSample(ch,i,0.2f*std::sin(2*juce::MathConstants<double>::pi*432*(block*blockSize+i)/48000));
         plugin->processBlock(buffer,midi);
         if (writer && !writer->writeFromAudioSampleBuffer(buffer,0,buffer.getNumSamples())) return 1;
-        for (int i=0;i<256;++i) {
+        for (int i=0;i<blockSize;++i) {
             if (!std::isfinite(buffer.getSample(0,i)) || std::abs(buffer.getSample(0,i))>0.3) {
                 std::cerr<<"Engine "<<engine<<" unexpected sample "<<buffer.getSample(0,i)<<" at "<<block*256+i<<'\n'; return 1;
             }
