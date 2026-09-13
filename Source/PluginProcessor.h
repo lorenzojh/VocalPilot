@@ -2,9 +2,12 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/CorrectionEngine.h"
 
-class VocalPilotProcessor final : public juce::AudioProcessor {
+class VocalPilotProcessor final : public juce::AudioProcessor,
+    private juce::AudioProcessorValueTreeState::Listener, private juce::AsyncUpdater {
 public:
     VocalPilotProcessor();
+    ~VocalPilotProcessor() override;
+    bool isLiveMode() const noexcept { return activeMode.load() == 1; }
     void prepareToPlay(double, int) override;
     void releaseResources() override {}
     bool isBusesLayoutSupported(const BusesLayout&) const override;
@@ -27,6 +30,11 @@ public:
     vocalpilot::Diagnostics readDiagnostics() const noexcept;
     juce::AudioProcessorValueTreeState parameters;
 private:
+    void parameterChanged(const juce::String&, float) override { triggerAsyncUpdate(); }
+    void handleAsyncUpdate() override;
+    void prepareSelectedMode(double);
+    std::atomic<int> activeMode {0};
+    double preparedRate=0;
     static juce::AudioProcessorValueTreeState::ParameterLayout makeParameters();
     void process(juce::AudioBuffer<float>&, bool);
     vocalpilot::CorrectionEngine engine;
@@ -35,6 +43,7 @@ private:
     std::atomic<float>* strengthValue = nullptr;
     std::atomic<float>* bypassValue = nullptr;
     std::atomic<float>* engineValue = nullptr;
+    std::atomic<float>* modeValue = nullptr;
     static_assert(std::atomic<float>::is_always_lock_free, "DSP meters require lock-free floats");
     std::atomic<float> hz { 0 }, midi { 0 }, deviation { 0 }, correction { 0 }, target { -1 };
     // Independent diagnostic fields; the UI may see adjacent blocks, never torn scalars.
